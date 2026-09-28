@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reakční Rychlost - Hra pro Více Hráčů</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        p1: '#FF2E93', // Neon Pink
+                        p2: '#00F0FF', // Cyan / Electric Blue
+                        p3: '#FFBD00', // Yellow / Gold
+                        p4: '#00FF66', // Neon Green
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.5s infinite',
+                        'bounce-short': 'bounce 0.5s 2',
+                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.8)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            background-color: #0F172A;
+            color: #F8FAFC;
+            font-family: 'Outfit', sans-serif;
+            overflow: hidden;
+        }
+
+        .player-btn-active {
+            transition: transform 0.05s ease, filter 0.05s ease, opacity 0.2s ease;
+        }
+
+        .player-btn-active:active {
+            transform: scale(0.97);
+            filter: brightness(1.25);
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Rotated content for face-to-face play on shared screens */
+        .rotate-180-content {
+            transform: rotate(180deg);
+        }
+
+        /* Positions for Start Hub */
+        .hub-position-top {
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .hub-position-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between overflow-hidden relative selection:bg-none">
+
+    <!-- LOBBY / SETUP SCREEN -->
+    <div id="screen-lobby" class="fixed inset-0 z-30 flex flex-col items-center justify-center p-4 bg-slate-950 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 overflow-y-auto">
+        
+        <div class="absolute top-10 left-10 w-72 h-72 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-10 right-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="max-w-md w-full glass-panel rounded-3xl p-6 md:p-8 shadow-2xl z-10 my-auto border border-slate-700/60">
+            
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-pink-500 via-purple-500 to-cyan-400 text-white shadow-xl mb-3 animate-bounce-short">
+                    <i class="fa-solid fa-bolt text-3xl"></i>
+                </div>
+                <h1 class="text-3xl md:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-yellow-300 to-cyan-400">
+                    KDO JE RYCHLEJŠÍ?
+                </h1>
+                <p class="text-slate-400 text-xs sm:text-sm mt-1">Kdo zmáčkne své pole nejrychleji?</p>
+            </div>
+
+            <!-- Number of Players Selector -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                    <i class="fa-solid fa-users mr-1"></i> Počet hráčů:
+                </label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button type="button" onclick="setPlayerCount(2)" id="btn-count-2" class="count-btn py-3 rounded-2xl font-black text-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-800 border-pink-500 text-pink-400 shadow-md">
+                        <span>2</span>
+                        <span class="text-[10px] font-normal tracking-normal text-slate-400">Hráči</span>
+                    </button>
+                    <button type="button" onclick="setPlayerCount(3)" id="btn-count-3" class="count-btn py-3 rounded-2xl font-black text-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500">
+                        <span>3</span>
+                        <span class="text-[10px] font-normal tracking-normal text-slate-400">Hráči</span>
+                    </button>
+                    <button type="button" onclick="setPlayerCount(4)" id="btn-count-4" class="count-btn py-3 rounded-2xl font-black text-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500">
+                        <span>4</span>
+                        <span class="text-[10px] font-normal tracking-normal text-slate-400">Hráči</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Start Button Position Option -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                    <i class="fa-solid fa-up-down-left-right mr-1"></i> Pozice tlačítka START:
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" onclick="setHubPosition('top')" id="btn-pos-top" class="pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800 border-emerald-400 text-emerald-400 shadow-md">
+                        <i class="fa-solid fa-arrow-up"></i> Nahoře
+                    </button>
+                    <button type="button" onclick="setHubPosition('center')" id="btn-pos-center" class="pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500">
+                        <i class="fa-solid fa-arrows-to-dot"></i> Uprostřed
+                    </button>
+                </div>
+            </div>
+
+            <!-- Player Name & Inputs -->
+            <div class="mb-6 space-y-2.5" id="player-inputs-container">
+                <!-- Dynamically populated via JS -->
+            </div>
+
+            <!-- Action Button -->
+            <button onclick="startGame()" class="w-full py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 text-slate-950 shadow-lg shadow-emerald-500/25 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i> VSTOUPIT DO HRY
+            </button>
+        </div>
+
+        <div class="text-xs text-slate-500 mt-4 text-center max-w-xs">
+        </div>
+    </div>
+
+    <!-- GAMEPLAY CANVAS SCREEN -->
+    <div id="screen-game" class="fixed inset-0 z-10 hidden flex-col w-full h-full bg-slate-950 overflow-hidden">
+        
+        <!-- Central / Top Control Hub Container -->
+        <div id="center-hub" class="absolute z-20 pointer-events-auto transition-all duration-300 hub-position-top">
+            <div class="glass-panel px-5 py-3 sm:px-6 sm:py-4 rounded-3xl border-2 border-slate-600/80 shadow-2xl flex flex-col items-center justify-center text-center min-w-[200px] sm:min-w-[260px]">
+                
+                <!-- Status Message -->
+                <div id="status-label" class="text-xs font-black uppercase tracking-widest text-slate-300 mb-1.5">
+                    Stiskněte START
+                </div>
+
+                <!-- START Button -->
+                <button id="btn-central-start" onclick="onStartButtonClick()" class="w-full py-2.5 px-5 rounded-2xl font-black text-base sm:text-lg bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-power-off"></i> START
+                </button>
+
+                <!-- Menu Button -->
+                <button onclick="confirmExitToLobby()" class="mt-2 text-[11px] font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 px-3 py-0.5 bg-slate-800/80 rounded-full border border-slate-700">
+                    <i class="fa-solid fa-house"></i> Menu
+                </button>
+            </div>
+        </div>
+
+        <!-- Dynamic Grid Container for Player Colored Fields -->
+        <div id="player-grid" class="w-full h-full grid">
+            <!-- Dynamically populated grid items based on player count -->
+        </div>
+    </div>
+
+    <!-- FINAL ORDER RESULTS MODAL -->
+    <div id="modal-result" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-pop-in">
+        <div class="max-w-md w-full glass-panel rounded-3xl p-6 text-center border border-slate-700 shadow-2xl relative overflow-hidden" id="modal-card">
+            
+            <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-yellow-400/20 text-yellow-400 mb-2">
+                <i class="fa-solid fa-trophy text-2xl"></i>
+            </div>
+            
+            <h2 class="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white mb-1">
+                KONEČNÉ POŘADÍ
+            </h2>
+            <p class="text-xs text-slate-400 mb-4">Výsledky tohoto kola podle rychlosti stisku</p>
+            
+            <!-- Finishing Order List -->
+            <div id="finish-order-list" class="space-y-2 mb-6">
+                <!-- Dynamically populated order items -->
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeResultModal(); prepareNextRound();" class="py-3 px-4 rounded-2xl font-black bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> Další Kolo
+                </button>
+                <button onclick="closeResultModal(); backToLobby();" class="py-3 px-4 rounded-2xl font-bold bg-slate-800 text-slate-200 hover:bg-slate-700 transition-all border border-slate-700 flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-bars"></i> Nabídka
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Preset Colors & Configurations for Players
+        const PLAYER_CONFIGS = [
+            { id: 1, name: 'Hráč 1', colorHex: '#FF2E93', label: 'RŮŽOVÝ' },
+            { id: 2, name: 'Hráč 2', colorHex: '#00F0FF', label: 'MODRÝ' },
+            { id: 3, name: 'Hráč 3', colorHex: '#FFBD00', label: 'ŽLUTÝ' },
+            { id: 4, name: 'Hráč 4', colorHex: '#00FF66', label: 'ZELENÝ' }
+        ];
+
+        // Synthesizer Web Audio API for Instant Sound Effects
+        const AudioSys = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playTone(freq, duration, type = 'sine') {
+                if (!this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e){}
+            },
+            playBeepReady() { this.playTone(440, 0.15, 'sine'); },
+            playBeepGo() { this.playTone(880, 0.3, 'triangle'); },
+            playFoul() { this.playTone(180, 0.35, 'sawtooth'); },
+            playTap() { this.playTone(600, 0.1, 'sine'); },
+            playFinish() { 
+                this.playTone(523.25, 0.1, 'sine');
+                setTimeout(() => this.playTone(659.25, 0.1, 'sine'), 90);
+                setTimeout(() => this.playTone(783.99, 0.25, 'triangle'), 180);
+            }
+        };
+
+        // Game State Variables
+        let selectedPlayerCount = 2;
+        let hubPosition = 'top'; // 'top' or 'center'
+        let players = [];
+        let gameState = 'READY_TO_START'; // READY_TO_START, COUNTDOWN, GO, FINISHED
+        let countdownTimeout = null;
+        let finishedPlayersOrder = []; // Array tracking order of players who pressed
+
+        // Initialize Lobby Inputs
+        function initLobby() {
+            renderPlayerInputs();
+        }
+
+        function setPlayerCount(count) {
+            selectedPlayerCount = count;
+            
+            for (let i = 2; i <= 4; i++) {
+                const btn = document.getElementById(`btn-count-${i}`);
+                if (i === count) {
+                    btn.className = "count-btn py-3 rounded-2xl font-black text-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-800 border-pink-500 text-pink-400 shadow-md scale-[1.02]";
+                } else {
+                    btn.className = "count-btn py-3 rounded-2xl font-black text-xl border-2 transition-all flex flex-col items-center justify-center bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500";
+                }
+            }
+            renderPlayerInputs();
+        }
+
+        function setHubPosition(pos) {
+            hubPosition = pos;
+            const topBtn = document.getElementById('btn-pos-top');
+            const centerBtn = document.getElementById('btn-pos-center');
+
+            if (pos === 'top') {
+                topBtn.className = "pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800 border-emerald-400 text-emerald-400 shadow-md";
+                centerBtn.className = "pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500";
+            } else {
+                centerBtn.className = "pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800 border-emerald-400 text-emerald-400 shadow-md";
+                topBtn.className = "pos-btn py-2.5 rounded-2xl font-bold text-sm border-2 transition-all flex items-center justify-center gap-2 bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500";
+            }
+
+            // Apply position class to hub
+            const hub = document.getElementById('center-hub');
+            if (hub) {
+                if (pos === 'top') {
+                    hub.className = "absolute z-20 pointer-events-auto transition-all duration-300 hub-position-top";
+                } else {
+                    hub.className = "absolute z-20 pointer-events-auto transition-all duration-300 hub-position-center";
+                }
+            }
+        }
+
+        function renderPlayerInputs() {
+            const container = document.getElementById('player-inputs-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < selectedPlayerCount; i++) {
+                const config = PLAYER_CONFIGS[i];
+                const savedName = players[i] ? players[i].name : config.name;
+
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3 bg-slate-900/60 p-2.5 rounded-2xl border border-slate-800';
+                row.innerHTML = `
+                    <div class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-slate-950 text-sm shadow-md" style="background-color: ${config.colorHex}">
+                        ${i + 1}
+                    </div>
+                    <input type="text" id="input-p-${i}" value="${savedName}" maxlength="12"
+                        class="bg-slate-800/90 text-white font-semibold text-sm rounded-xl px-3 py-2 w-full border border-slate-700 focus:outline-none focus:border-cyan-400"
+                        placeholder="Jméno Hráče ${i + 1}">
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        function updatePlayersFromInputs() {
+            players = [];
+            for (let i = 0; i < selectedPlayerCount; i++) {
+                const input = document.getElementById(`input-p-${i}`);
+                const name = input && input.value.trim() ? input.value.trim() : PLAYER_CONFIGS[i].name;
+                players.push({
+                    ...PLAYER_CONFIGS[i],
+                    name: name,
+                    isFouled: false,
+                    pressedOrder: null
+                });
+            }
+        }
+
+        function buildGameGrid() {
+            const gridContainer = document.getElementById('player-grid');
+            gridContainer.innerHTML = '';
+
+            if (selectedPlayerCount === 2) {
+                gridContainer.className = 'w-full h-full grid grid-rows-2 sm:grid-cols-2 sm:grid-rows-1';
+            } else if (selectedPlayerCount === 3) {
+                gridContainer.className = 'w-full h-full grid grid-rows-3 sm:grid-cols-3 sm:grid-rows-1';
+            } else if (selectedPlayerCount === 4) {
+                gridContainer.className = 'w-full h-full grid grid-cols-2 grid-rows-2';
+            }
+
+            players.forEach((p, index) => {
+                const isRotated = (selectedPlayerCount === 2 && index === 0) || (selectedPlayerCount === 4 && index < 2);
+
+                const btn = document.createElement('button');
+                btn.id = `player-area-${index}`;
+                btn.setAttribute('type', 'button');
+                
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); handlePlayerClick(index); }, { passive: false });
+                btn.addEventListener('mousedown', (e) => { e.preventDefault(); handlePlayerClick(index); });
+
+                btn.className = `player-btn-active relative flex flex-col items-center justify-center p-6 w-full h-full cursor-pointer select-none transition-all duration-150 overflow-hidden`;
+                btn.style.backgroundColor = p.colorHex;
+
+                btn.innerHTML = `
+                    <div class="flex flex-col items-center justify-center text-center text-slate-950 ${isRotated ? 'rotate-180-content' : ''}">
+                        <div class="text-[11px] font-black tracking-widest uppercase opacity-75 mb-1">
+                            KLIKNI / ŤUKNI ZDE
+                        </div>
+                        <div class="text-2xl sm:text-4xl font-black tracking-tight drop-shadow-sm max-w-[180px] truncate">
+                            ${p.name}
+                        </div>
+                        
+                        <div id="p-status-${index}" class="mt-2 text-xs sm:text-sm font-extrabold bg-slate-950/30 px-3 py-1 rounded-full text-slate-950 hidden shadow">
+                        </div>
+                    </div>
+                `;
+
+                gridContainer.appendChild(btn);
+            });
+        }
+
+        function startGame() {
+            AudioSys.init();
+            updatePlayersFromInputs();
+            
+            // Set hub position based on selection
+            setHubPosition(hubPosition);
+
+            document.getElementById('screen-lobby').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            document.getElementById('screen-game').classList.add('flex');
+
+            buildGameGrid();
+            prepareNextRound();
+        }
+
+        function prepareNextRound() {
+            clearTimeout(countdownTimeout);
+            gameState = 'READY_TO_START';
+            finishedPlayersOrder = [];
+
+            players.forEach(p => {
+                p.isFouled = false;
+                p.pressedOrder = null;
+            });
+
+            const statusLabel = document.getElementById('status-label');
+            statusLabel.textContent = "STISKNĚTE START";
+            statusLabel.className = "text-xs font-black uppercase tracking-widest text-slate-300 mb-1.5";
+
+            const startBtn = document.getElementById('btn-central-start');
+            startBtn.classList.remove('hidden');
+            startBtn.disabled = false;
+            startBtn.className = "w-full py-2.5 px-5 rounded-2xl font-black text-base sm:text-lg bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-xl shadow-emerald-500/30 hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2";
+            startBtn.innerHTML = `<i class="fa-solid fa-power-off"></i> START`;
+
+            players.forEach((_, idx) => {
+                const statusEl = document.getElementById(`p-status-${idx}`);
+                if (statusEl) {
+                    statusEl.classList.add('hidden');
+                    statusEl.textContent = "";
+                }
+                const btn = document.getElementById(`player-area-${idx}`);
+                if (btn) {
+                    btn.style.opacity = "1";
+                    btn.style.filter = "none";
+                }
+            });
+        }
+
+        function onStartButtonClick() {
+            if (gameState !== 'READY_TO_START') return;
+
+            AudioSys.init();
+            AudioSys.playBeepReady();
+
+            gameState = 'COUNTDOWN';
+
+            const startBtn = document.getElementById('btn-central-start');
+            startBtn.disabled = true;
+            startBtn.innerHTML = `<i class="fa-solid fa-hourglass-start animate-spin"></i> ČEKEJ...`;
+
+            const statusLabel = document.getElementById('status-label');
+            statusLabel.textContent = "ČEKEJTE NA SIGNÁL...";
+            statusLabel.className = "text-xs font-black uppercase tracking-widest text-amber-400 mb-1.5 animate-pulse";
+
+            const randomDelay = Math.floor(Math.random() * 3000) + 2000;
+
+            countdownTimeout = setTimeout(() => {
+                triggerGoSignal();
+            }, randomDelay);
+        }
+
+        function triggerGoSignal() {
+            gameState = 'GO';
+            AudioSys.playBeepGo();
+
+            const statusLabel = document.getElementById('status-label');
+            statusLabel.textContent = "TEĎ! STISKNI!";
+            statusLabel.className = "text-xs sm:text-sm font-black uppercase tracking-widest text-emerald-400 mb-1.5 animate-pulse-fast";
+
+            const startBtn = document.getElementById('btn-central-start');
+            startBtn.innerHTML = `<i class="fa-solid fa-bolt text-lg"></i> TEĎ!`;
+            startBtn.className = "w-full py-2.5 px-5 rounded-2xl font-black text-base sm:text-lg bg-gradient-to-r from-emerald-400 to-lime-400 text-slate-950 shadow-xl shadow-emerald-500/40 animate-bounce";
+        }
+
+        function handlePlayerClick(playerIdx) {
+            if (gameState === 'FINISHED') return;
+
+            const player = players[playerIdx];
+
+            // FAULT: Player pressed before "TEĎ!"
+            if (gameState === 'COUNTDOWN' || gameState === 'READY_TO_START') {
+                if (!player.isFouled && player.pressedOrder === null) {
+                    player.isFouled = true;
+                    AudioSys.playFoul();
+
+                    const statusEl = document.getElementById(`p-status-${playerIdx}`);
+                    if (statusEl) {
+                        statusEl.classList.remove('hidden');
+                        statusEl.textContent = "FAUL! (MOC BRZY)";
+                        statusEl.className = "mt-2 text-xs sm:text-sm font-black bg-red-600 text-white px-3 py-1 rounded-full shadow animate-bounce";
+                    }
+
+                    const btn = document.getElementById(`player-area-${playerIdx}`);
+                    if (btn) {
+                        btn.style.opacity = "0.35";
+                        btn.style.filter = "grayscale(60%)";
+                    }
+
+                    checkRoundEnd();
+                }
+                return;
+            }
+
+            // VALID TAP: Player pressed after "TEĎ!"
+            if (gameState === 'GO') {
+                if (!player.isFouled && player.pressedOrder === null) {
+                    finishedPlayersOrder.push(playerIdx);
+                    player.pressedOrder = finishedPlayersOrder.length;
+
+                    AudioSys.playTap();
+
+                    const statusEl = document.getElementById(`p-status-${playerIdx}`);
+                    if (statusEl) {
+                        statusEl.classList.remove('hidden');
+                        statusEl.textContent = `${player.pressedOrder}. MÍSTO`;
+                        statusEl.className = "mt-2 text-xs sm:text-sm font-black bg-slate-950 text-white px-3.5 py-1.5 rounded-full shadow-lg border border-white/20";
+                    }
+
+                    const btn = document.getElementById(`player-area-${playerIdx}`);
+                    if (btn) {
+                        btn.style.opacity = "0.75";
+                    }
+
+                    checkRoundEnd();
+                }
+            }
+        }
+
+        function checkRoundEnd() {
+            const processedCount = players.filter(p => p.isFouled || p.pressedOrder !== null).length;
+
+            if (processedCount === players.length) {
+                gameState = 'FINISHED';
+                AudioSys.playFinish();
+
+                setTimeout(() => {
+                    showFinalOrderModal();
+                }, 400);
+            }
+        }
+
+        function showFinalOrderModal() {
+            const modal = document.getElementById('modal-result');
+            const listContainer = document.getElementById('finish-order-list');
+            listContainer.innerHTML = '';
+
+            let results = [];
+
+            finishedPlayersOrder.forEach(playerIdx => {
+                results.push({ ...players[playerIdx], type: 'SUCCESS' });
+            });
+
+            players.forEach(p => {
+                if (p.isFouled) {
+                    results.push({ ...p, type: 'FAUL' });
+                }
+            });
+
+            results.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between p-3 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-sm";
+
+                let placeBadge = '';
+                if (item.type === 'SUCCESS') {
+                    const placeNum = index + 1;
+                    if (placeNum === 1) {
+                        placeBadge = `<div class="w-8 h-8 rounded-xl bg-yellow-400 text-slate-950 font-black flex items-center justify-center text-sm shadow"><i class="fa-solid fa-crown text-xs mr-0.5"></i>1</div>`;
+                    } else if (placeNum === 2) {
+                        placeBadge = `<div class="w-8 h-8 rounded-xl bg-slate-300 text-slate-950 font-black flex items-center justify-center text-sm shadow">2</div>`;
+                    } else if (placeNum === 3) {
+                        placeBadge = `<div class="w-8 h-8 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center text-sm shadow">3</div>`;
+                    } else {
+                        placeBadge = `<div class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 font-black flex items-center justify-center text-sm">4</div>`;
+                    }
+                } else {
+                    placeBadge = `<div class="w-8 h-8 rounded-xl bg-red-500/20 text-red-400 font-black flex items-center justify-center text-xs border border-red-500/30">FAUL</div>`;
+                }
+
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        ${placeBadge}
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full" style="background-color: ${item.colorHex}"></span>
+                            <span class="font-extrabold text-white text-base">${item.name}</span>
+                        </div>
+                    </div>
+                    <div class="font-bold text-xs uppercase ${item.type === 'FAUL' ? 'text-red-400' : 'text-emerald-400'}">
+                        ${item.type === 'FAUL' ? 'Moc Brzy' : (index + 1) + '. Místo'}
+                    </div>
+                `;
+
+                listContainer.appendChild(row);
+            });
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeResultModal() {
+            document.getElementById('modal-result').classList.add('hidden');
+        }
+
+        function backToLobby() {
+            clearTimeout(countdownTimeout);
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('flex');
+            document.getElementById('screen-lobby').classList.remove('hidden');
+        }
+
+        function confirmExitToLobby() {
+            backToLobby();
+        }
+
+        window.onload = function() {
+            initLobby();
+        };
+    </script>
+</body>
+</html>
